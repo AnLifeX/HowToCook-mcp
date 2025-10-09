@@ -17,14 +17,14 @@ let categories = [];
 // 命令行参数处理
 const program = new Command()
     .option("--transport <stdio|http|sse>", "transport type", "http")
-    .option("--port <number>", "port for HTTP/SSE transport", "3000")
+    .option("--port <number>", "port for HTTP/SSE transport", "9000")
     .parse(process.argv);
 const cliOptions = program.opts();
 // 优先使用环境变量,然后是命令行参数
 const transportFromEnv = process.env.transport || process.env.TRANSPORT;
 const portFromEnv = process.env.PORT || process.env.port;
 const transport = transportFromEnv || cliOptions.transport || "http";
-const port = portFromEnv || cliOptions.port || "3000";
+const port = portFromEnv || cliOptions.port || "9000";
 const allowedTransports = ["stdio", "http", "sse"];
 if (!allowedTransports.includes(transport)) {
     console.error(`Invalid transport value: '${transport}'. Must be one of: stdio, http, sse.`);
