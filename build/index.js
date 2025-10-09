@@ -16,17 +16,23 @@ let recipes = [];
 let categories = [];
 // 命令行参数处理
 const program = new Command()
-    .option("--transport <stdio|http|sse>", "transport type", "stdio")
+    .option("--transport <stdio|http|sse>", "transport type", "http")
     .option("--port <number>", "port for HTTP/SSE transport", "3000")
     .parse(process.argv);
 const cliOptions = program.opts();
+// 优先使用环境变量,然后是命令行参数
+const transportFromEnv = process.env.transport || process.env.TRANSPORT;
+const portFromEnv = process.env.PORT || process.env.port;
+const transport = transportFromEnv || cliOptions.transport || "http";
+const port = portFromEnv || cliOptions.port || "3000";
 const allowedTransports = ["stdio", "http", "sse"];
-if (!allowedTransports.includes(cliOptions.transport)) {
-    console.error(`Invalid --transport value: '${cliOptions.transport}'. Must be one of: stdio, http, sse.`);
+if (!allowedTransports.includes(transport)) {
+    console.error(`Invalid transport value: '${transport}'. Must be one of: stdio, http, sse.`);
     process.exit(1);
 }
-const TRANSPORT_TYPE = (cliOptions.transport || "stdio");
-const PORT = parseInt(cliOptions.port, 10);
+const TRANSPORT_TYPE = transport;
+const PORT = parseInt(port, 10);
+console.log(`🔧 启动配置: transport=${TRANSPORT_TYPE}, port=${PORT}`);
 //  SSE transports 
 const sseTransports = {};
 // 创建MCP服务器实例
@@ -150,16 +156,16 @@ async function main() {
                 }
             }
         });
-        httpServer.listen(PORT, () => {
+        httpServer.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 HowToCook MCP ${TRANSPORT_TYPE.toUpperCase()} 服务器启动成功`);
             if (TRANSPORT_TYPE === "http") {
-                console.log(`🔗 MCP 端点: http://localhost:${PORT}/mcp`);
+                console.log(`🔗 MCP 端点: http://0.0.0.0:${PORT}/mcp`);
             }
             else if (TRANSPORT_TYPE === "sse") {
-                console.log(`🔗 MCP 端点: http://localhost:${PORT}/sse`);
+                console.log(`🔗 MCP 端点: http://0.0.0.0:${PORT}/sse`);
             }
-            console.log(`💡 健康检查: http://localhost:${PORT}/health`);
-            console.log(`ℹ️  服务器信息: http://localhost:${PORT}/info`);
+            console.log(`💡 健康检查: http://0.0.0.0:${PORT}/health`);
+            console.log(`ℹ️  服务器信息: http://0.0.0.0:${PORT}/info`);
         });
     }
     else {
