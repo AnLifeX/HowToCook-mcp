@@ -3,13 +3,6 @@
 [English](./README_EN.md) | 简体中文
 
 <div align="center">
-
-本项目 CDN 加速及安全防护由 Tencent EdgeOne 赞助
-
-[亚洲最佳 CDN、边缘和安全解决方案 - Tencent EdgeOne](https://edgeone.ai/zh?from=github)
-
-<img src="./public/edgeone.png"/>
-
 </div>
 
 > 让 AI 助手变身私人大厨，为你的一日三餐出谋划策！
@@ -17,8 +10,6 @@
 基于[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook)打造的 MCP(Model Context Protocol)服务器，让 AI 助手能够为你推荐菜谱、规划膳食，解决"今天吃什么"的世纪难题！
 
 数据来源：[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook) ⭐ 没有 star 的同学快去点个星星吧！
-
-🎉 **想直接使用当前 MCP？立即体验** [https://howtocookmcp.weilei.site/](https://howtocookmcp.weilei.site/)
 
 🎉 **同时，我们也提供了 DXT（Desktop Extensions）供大家体验，一键安装到 Claude Desktop**
 
@@ -215,13 +206,3 @@ MIT License - 随意使用，就像分享美食配方一样慷慨！
 
 > 🍴 美食即将开始，胃口准备好了吗？
 
-## 写在最后
-
-平时关注 MCP 比较多，特意新建了一个 MCP 的群聊，欢迎各位大佬加群讨论更多 MCP 的话题
-
-<div style="text-align: center;">
-<img src="./public/wechat.jpg" alt="MCP群聊" width="300" />
-</div>
-
-
-或者直接加作者 VX 进群：`worry3stone`, 请注明`MCP Exchange`，否则会被忽略哦
