@@ -11,6 +11,7 @@ import { registerGetRecipeByIdTool } from "./tools/getRecipeById.js";
 import { registerGetRecipesByCategoryTool } from "./tools/getRecipesByCategory.js";
 import { registerRecommendMealsTool } from "./tools/recommendMeals.js";
 import { registerWhatToEatTool } from "./tools/whatToEat.js";
+import { registerCreateRecipeTool } from "./tools/createRecipe.js";
 // 全局变量存储数据
 let recipes = [];
 let categories = [];
@@ -39,7 +40,7 @@ const sseTransports = {};
 function createServerInstance() {
     const server = new McpServer({
         name: 'howtocook-mcp',
-        version: '0.1.1',
+        version: '0.2.0',
     }, {
         capabilities: {
             logging: {},
@@ -51,6 +52,7 @@ function createServerInstance() {
     registerRecommendMealsTool(server, recipes);
     registerWhatToEatTool(server, recipes);
     registerGetRecipeByIdTool(server, recipes);
+    registerCreateRecipeTool(server, recipes);
     return server;
 }
 // 加载菜谱数据
@@ -132,7 +134,7 @@ async function main() {
                     res.writeHead(200, { "Content-Type": "application/json" });
                     res.end(JSON.stringify({
                         name: "HowToCook MCP Server",
-                        version: "0.1.1",
+                        version: "0.2.0",
                         transport: TRANSPORT_TYPE,
                         endpoints: {
                             mcp: "/mcp",
