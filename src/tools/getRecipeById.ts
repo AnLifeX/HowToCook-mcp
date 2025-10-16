@@ -5,7 +5,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 export function registerGetRecipeByIdTool(server: McpServer, recipes: Recipe[]) {
   server.tool(
     "mcp_howtocook_getRecipeById",
-    "根据菜谱名称或ID查询指定菜谱的完整详情，包括食材、步骤等",
+    `根据菜谱名称或ID查询指定菜谱的完整详情，包括食材、步骤等。
+
+注意：如果查询结果提示"未找到匹配的菜谱"，说明数据库中不存在该菜谱。
+此时你可以考虑使用 mcp_howtocook_createRecipe 工具来创建新的菜谱。`,
     {
       query: z.string().describe('菜谱名称或ID，支持模糊匹配菜谱名称')
     },
@@ -40,7 +43,8 @@ export function registerGetRecipeByIdTool(server: McpServer, recipes: Recipe[]) 
                 text: JSON.stringify({
                   error: "未找到匹配的菜谱",
                   query: query,
-                  suggestion: "请检查菜谱名称是否正确，或尝试使用关键词搜索"
+                  suggestion: "数据库中不存在该菜谱。你可以使用 mcp_howtocook_createRecipe 工具来创建这个新菜谱。",
+                  nextAction: "建议调用 mcp_howtocook_createRecipe 工具"
                 }, null, 2),
               },
             ],
