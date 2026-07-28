@@ -38,10 +38,13 @@
   "author": "worry",
   "license": "ISC",
   "description": "MCP Server for howtocook recipe database - 炫一周好饭，拒绝拼好饭",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.9.0",
     "@types/express": "^5.0.3",
-    "commander": "^14.0.0",
+    "commander": "13.1.0",
     "express": "^5.1.0",
     "zod": "^3.22.4"
   },
