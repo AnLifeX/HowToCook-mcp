@@ -6,7 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { Command } from 'commander';
 import { createServer } from 'http';
-import { fetchRecipes, getAllCategories } from "./data/recipes.js";
+import { fetchRecipes, getAllCategories, getRecipeDataVersion } from "./data/recipes.js";
 import { registerGetAllRecipesTool } from "./tools/getAllRecipes.js";
 import { registerGetRecipeByIdTool } from "./tools/getRecipeById.js";
 import { registerGetRecipesByCategoryTool } from "./tools/getRecipesByCategory.js";
@@ -55,7 +55,7 @@ const sseTransports: Record<string, SSEServerTransport> = {};
 function createServerInstance(): McpServer {
   const server = new McpServer({
     name: 'howtocook-mcp',
-    version: '0.2.0',
+    version: '0.3.0',
   }, {
     capabilities: {
       logging: {},
@@ -153,12 +153,19 @@ async function main() {
         }  
         else if (url === "/health") {
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "ok", transport: TRANSPORT_TYPE }));
+          res.end(JSON.stringify({
+            status: "ok",
+            transport: TRANSPORT_TYPE,
+            schemaVersion: 2,
+            dataVersion: getRecipeDataVersion(),
+          }));
         } else if (url === "/info") {
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end(JSON.stringify({
             name: "HowToCook MCP Server",
-            version: "0.2.0",
+            version: "0.3.0",
+            schemaVersion: 2,
+            dataVersion: getRecipeDataVersion(),
             transport: TRANSPORT_TYPE,
             endpoints: {
               mcp: "/mcp",

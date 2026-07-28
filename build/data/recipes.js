@@ -3,15 +3,14 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-// 本地菜谱JSON文件路径
 const LOCAL_RECIPES_PATH = join(__dirname, 'all_recipes.json');
-// 从本地文件加载数据的函数
+let dataVersion = 'unknown';
 export async function fetchRecipes() {
     try {
-        // 从本地文件读取数据
-        const data = readFileSync(LOCAL_RECIPES_PATH, 'utf-8');
-        const recipes = JSON.parse(data);
-        console.log(`✅ 成功从本地加载 ${recipes.length} 个菜谱`);
+        const data = JSON.parse(readFileSync(LOCAL_RECIPES_PATH, 'utf-8'));
+        const recipes = Array.isArray(data) ? data : data.recipes;
+        dataVersion = Array.isArray(data) ? 'legacy' : data.dataVersion;
+        console.log(`✅ 成功从本地加载 ${recipes.length} 个 V2 菜谱（数据版本 ${dataVersion}）`);
         return recipes;
     }
     catch (error) {
@@ -19,13 +18,9 @@ export async function fetchRecipes() {
         return [];
     }
 }
-// 获取所有分类
+export function getRecipeDataVersion() {
+    return dataVersion;
+}
 export function getAllCategories(recipes) {
-    const categories = new Set();
-    recipes.forEach((recipe) => {
-        if (recipe.category) {
-            categories.add(recipe.category);
-        }
-    });
-    return Array.from(categories);
+    return [...new Set(recipes.map((recipe) => recipe.category).filter(Boolean))];
 }

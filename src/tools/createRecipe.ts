@@ -1,160 +1,129 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-import { Recipe } from "../types/index.js";
-import { parseRecipeText, calculateSimilarity } from "../utils/recipeParser.js";
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import { Recipe } from '../types/index.js';
+import { calculateSimilarity, parseRecipeFromInput, parseRecipeText, RecipeInput } from '../utils/recipeParser.js';
 
-/**
- * 注册创建食谱工具
- * 接收自然语言格式的食谱文本，解析并规范化为 JSON 格式
- * 同时检查是否与现有食谱重复
- */
+const requirementSchema = z.union([
+  z.string(),
+  z.object({
+    text: z.string(),
+    markdown: z.string().optional(),
+    group: z.string().nullable().optional(),
+    kind: z.enum(['ingredient', 'tool', 'unknown']).optional(),
+  }),
+]);
+
+const ingredientSchema = z.union([
+  z.string(),
+  z.object({
+    name: z.string(),
+    text: z.string(),
+    optional: z.boolean().optional(),
+    source: z.string().optional(),
+    table: z.record(z.string()).optional(),
+  }),
+]);
+
+const stepSchema = z.union([
+  z.string(),
+  z.object({
+    kind: z.enum(['step', 'heading']).optional(),
+    title: z.string().optional(),
+    description: z.string(),
+  }),
+]);
+
+const structuredRecipeSchema = z.object({
+  name: z.string().describe('菜谱名称，不要添加“的做法”'),
+  description: z.string().optional().describe('菜谱简介：风味、营养、难度和预计耗时'),
+  category: z.string().optional().describe('分类 ID，如 meat_dish、vegetable_dish、staple'),
+  categoryName: z.string().optional().describe('中文分类名'),
+  difficulty: z.number().int().min(1).max(5).optional(),
+  estimatedCaloriesKcal: z.number().int().positive().optional().describe('估算整份菜谱热量'),
+  requirements: z.array(requirementSchema).optional().describe('必备原料和工具，不要在这里强行填写水等基础用量'),
+  ingredients: z.array(ingredientSchema).min(1).describe('用量与计算中的完整食材及数量，可包含水'),
+  tools: z.array(z.string()).optional(),
+  calculationNotes: z.array(z.string()).optional().describe('份量公式、比例和计算前提'),
+  steps: z.array(stepSchema).min(1).describe('操作内容，description 中不要再写序号'),
+  tips: z.string().optional(),
+  warnings: z.array(z.string()).optional(),
+});
+
 export function registerCreateRecipeTool(server: McpServer, recipes: Recipe[]) {
   server.tool(
-    "mcp_howtocook_createRecipe",
-    `创建新的食谱。接收自然语言格式的食谱文本，自动解析并规范化为标准 JSON 格式。
-
-支持的输入格式：
-【食谱名称】
-
-难度: ⭐⭐ 或 难度: 2
-难度等级说明（1-5星，必须是整数）：
-  ⭐ (1星) - 非常简单，几乎不需要烹饪技巧，10分钟内完成（如：拌面、煮泡面）
-  ⭐⭐ (2星) - 简单，基础烹饪技巧，15-30分钟（如：番茄炒蛋、煎蛋）
-  ⭐⭐⭐ (3星) - 中等，需要一定经验，30-60分钟（如：红烧肉、宫保鸡丁）
-  ⭐⭐⭐⭐ (4星) - 较难，需要较好的烹饪技巧和经验（如：佛跳墙、烤鸭）
-  ⭐⭐⭐⭐⭐ (5星) - 非常难，需要专业技巧和特殊设备（如：分子料理、法式甜点）
-
-分类: 水产/荤菜/素菜/早餐/主食/半成品加工/汤/甜品/酱料和其它材料
-
-食材:
-• 食材名称 数量单位（如：西红柿 500克、鸡蛋 3个）
-• 食材名称 数量单位
-
-所需工具: (可选)
-• 工具名称
-
-制作步骤:
-1. 步骤描述（详细说明操作和时间）
-2. 步骤描述
-
-小贴士: (可选)
-- 贴士内容
-
-该工具会自动检查与现有食谱的重复度，如果相似度超过阈值会返回警告。`,
+    'mcp_howtocook_createRecipe',
+    `创建 HowToCook V2 菜谱。优先传入 recipe 结构化对象；也兼容 recipeText 文本。
+返回的菜谱使用 schemaVersion=2 和稳定 UUID，完整保留菜谱简介、热量、必备原料和工具、用量与计算、操作、贴士与警告。
+“必备”只写需特别准备的原料/工具；水、油等虽可不出现在必备项，但用到时必须出现在 ingredients 的用量中。操作 description 不要自带 1. 2. 序号。`,
     {
-      recipeText: z.string().describe('自然语言格式的食谱文本'),
-      checkDuplicate: z.boolean().optional().describe('是否检查重复（默认 true）'),
-      similarityThreshold: z.number().min(0).max(1).optional().describe(`相似度检测阈值（0-1，默认 0.75）。
-      用于检测相似食谱并显示警告。
-      注意：相似度 >= 90% 的食谱会被自动拒绝创建，无论此参数如何设置。
-      建议值：0.7-0.8（更宽松）/ 0.75（标准）/ 0.8-0.85（更严格）`)
+      recipeText: z.string().optional().describe('兼容旧客户端的自然语言或 Markdown 菜谱'),
+      recipe: structuredRecipeSchema.optional().describe('推荐：V2 结构化菜谱'),
+      checkDuplicate: z.boolean().optional().describe('是否检查重复，默认 true'),
+      similarityThreshold: z.number().min(0).max(1).optional().describe('重复提醒阈值，默认 0.75'),
     },
-    async ({ recipeText, checkDuplicate = true, similarityThreshold = 0.75 }) => {
+    async ({ recipeText, recipe, checkDuplicate = true, similarityThreshold = 0.75 }) => {
       try {
-        // 解析食谱文本
-        const parsedRecipe = parseRecipeText(recipeText);
+        if (!recipe && !recipeText?.trim()) throw new Error('recipe 和 recipeText 至少需要传入一个');
+        const parsedRecipe = recipe
+          ? parseRecipeFromInput(recipe as RecipeInput)
+          : parseRecipeText(recipeText!);
 
-        // 检查重复
-        let duplicateInfo = null;
-        if (checkDuplicate) {
-          const similarRecipes: Array<{ recipe: Recipe; similarity: number }> = [];
+        const similarRecipes = checkDuplicate
+          ? recipes
+              .map((existing) => ({
+                recipe: existing,
+                similarity: calculateSimilarity(parsedRecipe.name, existing.name),
+              }))
+              .filter((item) => item.similarity >= similarityThreshold)
+              .sort((a, b) => b.similarity - a.similarity)
+          : [];
 
-          for (const existingRecipe of recipes) {
-            const similarity = calculateSimilarity(parsedRecipe.name, existingRecipe.name);
-            if (similarity >= similarityThreshold) {
-              similarRecipes.push({ recipe: existingRecipe, similarity });
-            }
-          }
-
-          // 按相似度降序排序
-          similarRecipes.sort((a, b) => b.similarity - a.similarity);
-
-          if (similarRecipes.length > 0) {
-            duplicateInfo = {
+        const duplicate = similarRecipes.length
+          ? {
               exists: true,
-              similarRecipes: similarRecipes.map(item => ({
-                name: item.recipe.name,
+              highestSimilarity: similarRecipes[0].similarity,
+              similarRecipes: similarRecipes.map((item) => ({
                 id: item.recipe.id,
+                name: item.recipe.name,
                 category: item.recipe.category,
-                similarity: Math.round(item.similarity * 100) / 100
+                categoryName: item.recipe.categoryName,
+                similarity: Math.round(item.similarity * 100) / 100,
               })),
-              highestSimilarity: similarRecipes[0].similarity
-            };
-          }
+            }
+          : null;
+
+        if (duplicate && duplicate.highestSimilarity >= 0.9) {
+          return jsonResult({
+            success: false,
+            error: '食谱已存在',
+            message: `检测到高度相似的食谱（${Math.round(duplicate.highestSimilarity * 100)}%），已拒绝创建。`,
+            duplicate,
+            existingRecipe: duplicate.similarRecipes[0],
+          });
         }
 
-        // 检查是否有高相似度的重复食谱（>= 90% 自动拒绝）
-        if (duplicateInfo && duplicateInfo.highestSimilarity >= 0.9) {
-          // 高相似度（>= 90%），直接拒绝创建
-          const existingRecipeInfo = duplicateInfo.similarRecipes[0];
-
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: false,
-                  error: "食谱已存在",
-                  message: `检测到高度相似的食谱（相似度 ${Math.round(duplicateInfo.highestSimilarity * 100)}%），已拒绝创建重复食谱。`,
-                  duplicate: duplicateInfo,
-                  existingRecipe: existingRecipeInfo,
-                  suggestion: `建议使用现有食谱：${existingRecipeInfo.name}（ID: ${existingRecipeInfo.id}）`,
-                  note: "相似度 >= 90% 会自动拒绝创建。如果确实需要创建相似食谱，请降低 similarityThreshold 参数。",
-                  nextAction: `请使用 mcp_howtocook_getRecipeById 工具查询完整食谱信息，参数为：${existingRecipeInfo.id}`
-                }, null, 2)
-              }
-            ]
-          };
-        }
-
-        // 检查中等相似度（达到用户设定的阈值但 < 90%）
-        if (duplicateInfo && duplicateInfo.highestSimilarity >= similarityThreshold && duplicateInfo.highestSimilarity < 0.9) {
-          // 中等相似度，提示用户但仍然允许创建
-          const shouldWarn = duplicateInfo.highestSimilarity >= 0.8; // 80% 以上给出强烈警告
-          if (shouldWarn) {
-            // 给出警告但不拒绝
-          }
-        }
-
-        // 构建返回结果
-        const result: any = {
+        return jsonResult({
           success: true,
+          schemaVersion: 2,
           recipe: parsedRecipe,
-          message: `食谱 "${parsedRecipe.name}" 已成功创建并规范化`
-        };
-
-        // 如果有中低相似度的警告（< 90%）
-        if (duplicateInfo) {
-          result.duplicate = duplicateInfo;
-          result.message += `\n\n⚠️ 警告：检测到相似食谱`;
-          result.message += `\n最高相似度：${Math.round(duplicateInfo.highestSimilarity * 100)}%`;
-          result.message += `\n相似食谱数量：${duplicateInfo.similarRecipes.length}`;
-        }
-
+          message: `V2 食谱“${parsedRecipe.name}”已规范化`,
+          ...(duplicate ? { duplicate } : {}),
+        });
+      } catch (error) {
         return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(result, null, 2)
-            }
-          ]
-        };
-
-      } catch (error: any) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                success: false,
-                error: error.message || '解析食谱时发生错误',
-                details: error.stack
-              }, null, 2)
-            }
-          ],
-          isError: true
+          ...jsonResult({
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          }),
+          isError: true,
         };
       }
-    }
+    },
   );
+}
+
+function jsonResult(value: unknown) {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+  };
 }

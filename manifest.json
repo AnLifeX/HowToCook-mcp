@@ -1,51 +1,53 @@
 {
   "dxt_version": "0.1",
   "name": "howtocook-mcp",
-  "version": "0.1.1",
-  "description": "MCP Server for howtocook recipe database - 炫一周好饭，拒绝拼好饭",
+  "version": "0.3.0",
+  "description": "HowToCook V2 MCP Server - 支持简介、热量、必备项、用量与计算和稳定 UUID",
   "author": {
     "name": "worry",
     "email": "weileihhh@gmail.com",
-    "url": "https://github.com/worryzyy"
+    "url": "https://github.com/Gaq152/HowToCook-mcp"
   },
   "homepage": "https://howtocookmcp.weilei.site",
-  "documentation": "https://github.com/worryzyy/HowToCook-mcp/blob/master/README.md",
+  "documentation": "https://github.com/Gaq152/HowToCook-mcp/blob/master/README.md",
   "server": {
     "type": "node",
     "entry_point": "build/index.js",
     "mcp_config": {
       "command": "node",
-      "args": [
-        "${__dirname}/build/index.js"
-      ],
+      "args": ["${__dirname}/build/index.js"],
       "env": {}
     }
   },
   "tools": [
     {
       "name": "mcp_howtocook_getAllRecipes",
-      "description": "获取所有菜谱"
+      "description": "获取 V2 菜谱索引（稳定 UUID、简介、分类、难度、热量）"
     },
     {
       "name": "mcp_howtocook_getRecipeById",
-      "description": "根据菜谱名称或ID查询指定菜谱的完整详情，包括食材、步骤等"
+      "description": "根据名称、V2 UUID 或旧 ID 查询菜谱完整 V2 详情"
     },
     {
       "name": "mcp_howtocook_getRecipesByCategory",
-      "description": "根据分类查询菜谱,菜谱分类名称，如水产、早餐、荤菜、主食等"
+      "description": "根据分类 ID 或中文分类名查询菜谱"
     },
     {
       "name": "mcp_howtocook_recommendMeals",
-      "description": "根据用户的忌口、过敏原、人数智能推荐菜谱，创建一周的膳食计划以及大致的购物清单"
+      "description": "根据忌口、过敏原、人数生成膳食计划与不错误混算单位的购物清单"
     },
     {
       "name": "mcp_howtocook_whatToEat",
       "description": "不知道吃什么？根据人数直接推荐适合的菜品组合"
+    },
+    {
+      "name": "mcp_howtocook_createRecipe",
+      "description": "创建结构化 V2 菜谱，支持简介、热量、必备项、用量计算、操作和表格字段"
     }
   ],
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "https://github.com/worryzyy/HowToCook-mcp"
+    "url": "https://github.com/Gaq152/HowToCook-mcp"
   }
 }

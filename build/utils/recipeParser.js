@@ -1,306 +1,327 @@
-/**
- * 解析自然语言格式的食谱文本或结构化 JSON
- * 自动检测输入格式并调用相应的解析器
- */
+import { randomUUID } from 'crypto';
+const categoryByName = {
+    '水产': 'aquatic',
+    '早餐': 'breakfast',
+    '调料': 'condiment',
+    '酱料和其它材料': 'condiment',
+    '甜品': 'dessert',
+    '饮料': 'drink',
+    '饮品': 'drink',
+    '荤菜': 'meat_dish',
+    '半成品': 'semi-finished',
+    '半成品加工': 'semi-finished',
+    '汤': 'soup',
+    '汤粥': 'soup',
+    '汤羹': 'soup',
+    '主食': 'staple',
+    '素菜': 'vegetable_dish',
+    '其他': 'other',
+};
+const categoryNames = Object.fromEntries(Object.entries(categoryByName).map(([name, id]) => [id, name]));
+categoryNames.condiment = '调料';
+categoryNames.drink = '饮料';
+categoryNames['semi-finished'] = '半成品';
+categoryNames.soup = '汤粥';
 export function parseRecipeText(text) {
-    // 尝试解析为 JSON
-    try {
-        const trimmed = text.trim();
-        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-            const jsonData = JSON.parse(trimmed);
-            return parseRecipeFromJson(jsonData);
+    const trimmed = text.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        try {
+            return parseRecipeFromInput(JSON.parse(trimmed));
         }
-    }
-    catch (error) {
-        // 不是有效的 JSON，继续使用文本解析
-    }
-    // 使用自然语言文本解析
-    return parseRecipeFromText(text);
-}
-/**
- * 从结构化 JSON 解析食谱
- */
-function parseRecipeFromJson(data) {
-    // 验证必填字段
-    if (!data.name) {
-        throw new Error('食谱名称不能为空');
-    }
-    if (!data.ingredients || data.ingredients.length === 0) {
-        throw new Error('食材列表不能为空');
-    }
-    if (!data.steps || data.steps.length === 0) {
-        throw new Error('制作步骤不能为空');
-    }
-    // 处理分类
-    const category = data.categoryName || data.category || '其他';
-    // 处理难度
-    const difficulty = Math.min(Math.max(data.difficulty || 3, 1), 5);
-    // 处理食材
-    const ingredients = data.ingredients.map(ing => ({
-        name: ing,
-        quantity: null,
-        unit: null,
-        text_quantity: ing,
-        notes: ''
-    }));
-    // 处理步骤
-    const steps = data.steps.map((stepDesc, index) => ({
-        step: index + 1,
-        description: stepDesc
-    }));
-    // 处理小贴士
-    const additionalNotes = [];
-    if (data.tips) {
-        const tips = data.tips.split('\n').map(t => t.trim()).filter(t => t.length > 0);
-        additionalNotes.push(...tips);
-    }
-    // 生成唯一 ID
-    const timestamp = Date.now();
-    const id = `custom-${sanitizeId(data.name)}-${timestamp}`;
-    // 构建描述文本
-    const description = buildDescription(data.name, category, difficulty, data.tools || []);
-    return {
-        id,
-        name: data.name.includes('的做法') ? data.name : `${data.name}的做法`,
-        description,
-        source_path: `custom/${sanitizeId(data.name)}.md`,
-        image_path: null,
-        category,
-        difficulty,
-        tags: [category],
-        servings: 1,
-        ingredients,
-        steps,
-        prep_time_minutes: null,
-        cook_time_minutes: null,
-        total_time_minutes: null,
-        additional_notes: additionalNotes
-    };
-}
-/**
- * 从自然语言文本解析食谱
- * 支持的格式：
- * 【名称】
- * 难度: ⭐⭐ 或 难度: 2
- * 分类: 水产
- * 食材:
- * • 食材名称 数量
- * 所需工具: (可选)
- * • 工具名称
- * 制作步骤:
- * 1. 步骤描述
- * 小贴士: (可选)
- * - 贴士内容
- */
-function parseRecipeFromText(text) {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    let name = '';
-    let difficulty = 3; // 默认难度
-    let category = '其他'; // 默认分类
-    const ingredients = [];
-    const steps = [];
-    const additionalNotes = [];
-    let tools = [];
-    let currentSection = '';
-    for (const line of lines) {
-        // 解析名称（【】或直接作为第一行）
-        if (line.startsWith('【') && line.includes('】')) {
-            name = line.replace(/【|】/g, '').trim();
-            continue;
-        }
-        // 如果第一个非空行没有【】，就作为名称
-        if (!name && !line.includes(':') && !line.match(/^[•\-\d]/)) {
-            name = line.trim();
-            continue;
-        }
-        // 解析难度
-        if (line.includes('难度')) {
-            const difficultyMatch = line.match(/难度[：:]\s*([⭐★]+|\d+)/);
-            if (difficultyMatch) {
-                const diffStr = difficultyMatch[1];
-                if (/[⭐★]/.test(diffStr)) {
-                    difficulty = diffStr.length; // 星星数量
-                }
-                else {
-                    difficulty = parseInt(diffStr, 10);
-                }
-            }
-            continue;
-        }
-        // 解析分类
-        if (line.includes('分类')) {
-            const categoryMatch = line.match(/分类[：:]\s*(.+)/);
-            if (categoryMatch) {
-                category = categoryMatch[1].trim();
-            }
-            continue;
-        }
-        // 检测当前所在的区块
-        if (line.includes('食材') && line.includes(':')) {
-            currentSection = 'ingredients';
-            continue;
-        }
-        if (line.includes('工具') && line.includes(':')) {
-            currentSection = 'tools';
-            continue;
-        }
-        if (line.includes('步骤') && line.includes(':')) {
-            currentSection = 'steps';
-            continue;
-        }
-        if (line.includes('小贴士') || line.includes('贴士') || line.includes('注意')) {
-            currentSection = 'notes';
-            continue;
-        }
-        // 根据当前区块解析内容
-        if (currentSection === 'ingredients') {
-            // 食材行（以 • 或 - 开头）
-            if (line.match(/^[•\-]/)) {
-                const ingredientText = line.replace(/^[•\-]\s*/, '').trim();
-                ingredients.push({
-                    name: ingredientText,
-                    quantity: null,
-                    unit: null,
-                    text_quantity: ingredientText,
-                    notes: ''
-                });
-            }
-        }
-        if (currentSection === 'tools') {
-            // 工具行（以 • 或 - 开头）
-            if (line.match(/^[•\-]/)) {
-                const toolText = line.replace(/^[•\-]\s*/, '').trim();
-                tools.push(toolText);
-            }
-        }
-        if (currentSection === 'steps') {
-            // 步骤行（以数字开头）
-            const stepMatch = line.match(/^(\d+)[\.、\s]+(.+)/);
-            if (stepMatch) {
-                steps.push({
-                    step: parseInt(stepMatch[1], 10),
-                    description: stepMatch[2].trim()
-                });
-            }
-        }
-        if (currentSection === 'notes') {
-            // 小贴士行（以 - 开头或直接文本）
-            if (line.match(/^[•\-]/)) {
-                additionalNotes.push(line.replace(/^[•\-]\s*/, '').trim());
-            }
-            else if (line && !line.includes(':')) {
-                additionalNotes.push(line.trim());
-            }
-        }
-    }
-    // 验证必填字段
-    if (!name) {
-        throw new Error('食谱名称不能为空');
-    }
-    if (ingredients.length === 0) {
-        throw new Error('食材列表不能为空');
-    }
-    if (steps.length === 0) {
-        throw new Error('制作步骤不能为空');
-    }
-    // 生成唯一 ID
-    const timestamp = Date.now();
-    const id = `custom-${sanitizeId(name)}-${timestamp}`;
-    // 构建描述文本
-    const description = buildDescription(name, category, difficulty, tools);
-    return {
-        id,
-        name: name.includes('的做法') ? name : `${name}的做法`,
-        description,
-        source_path: `custom/${sanitizeId(name)}.md`,
-        image_path: null,
-        category,
-        difficulty: Math.min(Math.max(difficulty, 1), 5), // 限制在 1-5 之间
-        tags: [category],
-        servings: 1,
-        ingredients,
-        steps,
-        prep_time_minutes: null,
-        cook_time_minutes: null,
-        total_time_minutes: null,
-        additional_notes: additionalNotes
-    };
-}
-/**
- * 构建食谱描述文本（Markdown 格式）
- */
-function buildDescription(name, category, difficulty, tools) {
-    const fullName = name.includes('的做法') ? name : `${name}的做法`;
-    let desc = `# ${fullName}\n\n`;
-    desc += `预估烹饪难度：${'★'.repeat(difficulty)}\n\n`;
-    desc += `分类：${category}\n\n`;
-    if (tools.length > 0) {
-        desc += `## 所需工具\n\n`;
-        tools.forEach(tool => {
-            desc += `- ${tool}\n`;
-        });
-        desc += '\n';
-    }
-    desc += `这是一道由 AI 生成并经过规范化处理的食谱。\n`;
-    return desc;
-}
-/**
- * 清理 ID 中的特殊字符
- */
-function sanitizeId(text) {
-    return text
-        .replace(/[【】\s\/\\:：]/g, '-')
-        .replace(/的做法$/g, '')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-}
-/**
- * 检查食谱名称的相似度
- * 返回 0-1 之间的相似度分数
- */
-export function calculateSimilarity(name1, name2) {
-    const s1 = name1.toLowerCase().replace(/的做法|【|】/g, '').trim();
-    const s2 = name2.toLowerCase().replace(/的做法|【|】/g, '').trim();
-    // 精确匹配
-    if (s1 === s2)
-        return 1.0;
-    // 包含关系
-    if (s1.includes(s2) || s2.includes(s1))
-        return 0.85;
-    // Levenshtein 距离
-    const distance = levenshteinDistance(s1, s2);
-    const maxLength = Math.max(s1.length, s2.length);
-    if (maxLength === 0)
-        return 1.0;
-    return 1 - distance / maxLength;
-}
-/**
- * 计算 Levenshtein 距离（编辑距离）
- */
-function levenshteinDistance(str1, str2) {
-    const len1 = str1.length;
-    const len2 = str2.length;
-    const dp = Array(len1 + 1)
-        .fill(null)
-        .map(() => Array(len2 + 1).fill(0));
-    for (let i = 0; i <= len1; i++) {
-        dp[i][0] = i;
-    }
-    for (let j = 0; j <= len2; j++) {
-        dp[0][j] = j;
-    }
-    for (let i = 1; i <= len1; i++) {
-        for (let j = 1; j <= len2; j++) {
-            if (str1[i - 1] === str2[j - 1]) {
-                dp[i][j] = dp[i - 1][j - 1];
+        catch (error) {
+            if (error instanceof SyntaxError) {
+                // 不是 JSON，继续按文本模板解析。
             }
             else {
-                dp[i][j] = Math.min(dp[i - 1][j] + 1, // 删除
-                dp[i][j - 1] + 1, // 插入
-                dp[i - 1][j - 1] + 1 // 替换
-                );
+                throw error;
             }
         }
     }
-    return dp[len1][len2];
+    return parseRecipeFromText(text);
+}
+export function parseRecipeFromInput(data) {
+    if (!data.name?.trim())
+        throw new Error('食谱名称不能为空');
+    if (!data.ingredients?.length)
+        throw new Error('用量与计算中至少需要一种食材');
+    if (!data.steps?.length)
+        throw new Error('操作板块至少需要一条内容');
+    const category = normalizeCategory(data.category, data.categoryName);
+    const categoryName = data.categoryName || categoryNames[category] || data.category || '其他';
+    const tools = uniqueStrings(data.tools || []);
+    const ingredients = data.ingredients.map(normalizeIngredient);
+    const requirements = (data.requirements || []).map(normalizeRequirement);
+    if (!requirements.length) {
+        requirements.push(...ingredients.map((item) => ({
+            text: item.name,
+            markdown: item.name,
+            kind: 'ingredient',
+        })), ...tools.map((tool) => ({ text: tool, markdown: tool, kind: 'tool' })));
+    }
+    const steps = data.steps.map(normalizeStep);
+    const calculationNotes = uniqueStrings(data.calculationNotes || []);
+    const id = randomUUID();
+    return {
+        schemaVersion: 2,
+        id,
+        legacyIds: [],
+        name: data.name.trim().replace(/的做法$/, ''),
+        description: data.description?.trim() || null,
+        category,
+        categoryName,
+        difficulty: clampDifficulty(data.difficulty),
+        estimatedCaloriesKcal: normalizePositiveInt(data.estimatedCaloriesKcal),
+        requirements,
+        requirementsMarkdown: requirements.map((item) => `* ${item.markdown}`).join('\n'),
+        ingredients,
+        tools,
+        calculationMarkdown: [
+            ...calculationNotes,
+            ...ingredients.map((item) => `* ${item.text}`),
+        ].join('\n'),
+        calculationNotes,
+        steps,
+        operationMarkdown: steps.map((step) => step.description).join('\n'),
+        tips: data.tips?.trim() || null,
+        warnings: uniqueStrings(data.warnings || []),
+        additionalMarkdown: null,
+        images: [],
+        externalImages: [],
+        source: 'mcp-created',
+        hash: id,
+    };
+}
+function parseRecipeFromText(text) {
+    const lines = text.split(/\r?\n/);
+    const input = { name: '', ingredients: [], steps: [] };
+    const requirements = [];
+    const tools = [];
+    const calculationNotes = [];
+    const warnings = [];
+    const descriptionLines = [];
+    const tipLines = [];
+    let section = '';
+    let tableHeaders = [];
+    for (const rawLine of lines) {
+        const raw = rawLine.trim();
+        if (!raw)
+            continue;
+        const headingMatch = raw.match(/^#{1,6}\s*(.+)$/);
+        const line = (headingMatch?.[1] || raw).trim();
+        const normalized = line.replace(/[：:]$/, '').trim();
+        if (headingMatch) {
+            if (!input.name && raw.startsWith('# ') && !isSectionTitle(normalized)) {
+                input.name = normalized.replace(/的做法$/, '');
+                continue;
+            }
+            const nextSection = detectSection(normalized);
+            if (nextSection) {
+                section = nextSection;
+                tableHeaders = [];
+                continue;
+            }
+        }
+        const label = line.match(/^([^：:]+)[：:]\s*(.*)$/);
+        if (label) {
+            const key = label[1].trim();
+            const value = label[2].trim();
+            if (/^(?:菜名|名称|食谱名称)$/.test(key)) {
+                input.name = value.replace(/的做法$/, '');
+                continue;
+            }
+            if (/^(?:菜谱)?简介$/.test(key)) {
+                if (value)
+                    descriptionLines.push(value);
+                section = 'description';
+                continue;
+            }
+            if (key.includes('难度')) {
+                input.difficulty = parseDifficulty(value);
+                continue;
+            }
+            if (key.includes('分类')) {
+                input.categoryName = value;
+                continue;
+            }
+            if (key.includes('热量') || key.includes('卡路里')) {
+                input.estimatedCaloriesKcal = parseFirstInt(value);
+                continue;
+            }
+            const nextSection = detectSection(key);
+            if (nextSection) {
+                section = nextSection;
+                if (value)
+                    addSectionLine(section, value, input, requirements, tools, calculationNotes, tipLines, warnings);
+                continue;
+            }
+        }
+        if (!input.name && !isListLine(line)) {
+            input.name = line.replace(/[【】]/g, '').replace(/的做法$/, '');
+            continue;
+        }
+        if (section === 'calculation' && line.includes('|')) {
+            const cells = line.split('|').map((cell) => cell.trim()).filter(Boolean);
+            if (!cells.length || cells.every((cell) => /^:?-{3,}:?$/.test(cell)))
+                continue;
+            if (!tableHeaders.length && cells.some((cell) => /(?:原料|食材|用量|备注)/.test(cell))) {
+                tableHeaders = cells;
+                continue;
+            }
+            const table = Object.fromEntries(cells.map((cell, index) => [tableHeaders[index] || `列${index + 1}`, cell]));
+            input.ingredients.push({ name: cells[0], text: cells.join(' '), optional: false, source: 'calculation-table', table });
+            continue;
+        }
+        if (section === 'description')
+            descriptionLines.push(line);
+        else
+            addSectionLine(section, line, input, requirements, tools, calculationNotes, tipLines, warnings);
+    }
+    input.description = descriptionLines.join('\n');
+    input.requirements = requirements;
+    input.tools = tools;
+    input.calculationNotes = calculationNotes;
+    input.tips = tipLines.join('\n');
+    input.warnings = warnings;
+    return parseRecipeFromInput(input);
+}
+function addSectionLine(section, value, input, requirements, tools, calculationNotes, tips, warnings) {
+    const clean = stripBullet(value);
+    if (!clean)
+        return;
+    if (section === 'requirements') {
+        const kind = looksLikeTool(clean) ? 'tool' : 'ingredient';
+        requirements.push({ text: clean, markdown: clean, kind });
+        if (kind === 'tool')
+            tools.push(clean);
+    }
+    else if (section === 'tools') {
+        tools.push(clean);
+    }
+    else if (section === 'calculation' || section === 'ingredients') {
+        if (isListLine(value))
+            input.ingredients.push(clean);
+        else
+            calculationNotes.push(clean);
+    }
+    else if (section === 'steps') {
+        input.steps.push(clean.replace(/^[\d①-⑳]+[.、：:\s]+/, ''));
+    }
+    else if (section === 'tips')
+        tips.push(clean);
+    else if (section === 'warnings')
+        warnings.push(clean);
+}
+function detectSection(title) {
+    if (/(?:必备原料)(?:和|与)?工具/.test(title))
+        return 'requirements';
+    if (/^(?:原料|食材|配料)$/.test(title))
+        return 'ingredients';
+    if (title.includes('用量') || title === '计算')
+        return 'calculation';
+    if (title.includes('工具'))
+        return 'tools';
+    if (/^(?:操作|做法|步骤|制作步骤)$/.test(title))
+        return 'steps';
+    if (title.includes('简介'))
+        return 'description';
+    if (/(?:小贴士|贴士|tips?)/i.test(title))
+        return 'tips';
+    if (/(?:注意|警告|warnings?)/i.test(title))
+        return 'warnings';
+    return '';
+}
+function isSectionTitle(value) {
+    return Boolean(detectSection(value));
+}
+function normalizeIngredient(value) {
+    if (typeof value === 'string') {
+        const text = value.trim();
+        return { name: ingredientName(text), text, optional: false, source: 'mcp-input' };
+    }
+    const text = String(value.text || value.name || '').trim();
+    if (!text)
+        throw new Error('食材内容不能为空');
+    return {
+        name: String(value.name || ingredientName(text)).trim(),
+        text,
+        optional: Boolean(value.optional),
+        source: value.source || 'mcp-input',
+        ...(value.table && Object.keys(value.table).length ? { table: value.table } : {}),
+    };
+}
+function normalizeRequirement(value) {
+    if (typeof value === 'string')
+        return { text: value.trim(), markdown: value.trim(), kind: 'unknown' };
+    const text = String(value.text || value.markdown || '').trim();
+    return { text, markdown: String(value.markdown || text), group: value.group, kind: value.kind || 'unknown' };
+}
+function normalizeStep(value) {
+    if (typeof value === 'string')
+        return { kind: 'step', description: value.trim() };
+    return {
+        kind: value.kind || 'step',
+        title: value.title,
+        description: String(value.description || '').trim(),
+    };
+}
+function normalizeCategory(category, categoryName) {
+    if (category && Object.values(categoryByName).includes(category))
+        return category;
+    return categoryByName[categoryName || ''] || categoryByName[category || ''] || category || 'other';
+}
+function parseDifficulty(value) {
+    const stars = (value.match(/[⭐★]/g) || []).length;
+    return stars || parseFirstInt(value) || 3;
+}
+function clampDifficulty(value) {
+    return Math.min(5, Math.max(1, Math.round(value || 3)));
+}
+function normalizePositiveInt(value) {
+    if (value == null || !Number.isFinite(value) || value <= 0)
+        return null;
+    return Math.round(value);
+}
+function parseFirstInt(value) {
+    const match = value.match(/\d+/);
+    return match ? Number.parseInt(match[0], 10) : undefined;
+}
+function ingredientName(text) {
+    return text.split(/\s+/)[0] || text;
+}
+function stripBullet(value) {
+    return value.replace(/^[*•-]\s*/, '').trim();
+}
+function isListLine(value) {
+    return /^[*•-]|^[\d①-⑳]+[.、：:\s]+/.test(value.trim());
+}
+function looksLikeTool(value) {
+    return ['锅', '刀', '砧板', '烤箱', '微波炉', '打蛋器', '电饭煲', '料理机', '容器'].some((word) => value.includes(word));
+}
+function uniqueStrings(values) {
+    return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+export function calculateSimilarity(name1, name2) {
+    const s1 = name1.toLowerCase().replace(/的做法|[【】]/g, '').trim();
+    const s2 = name2.toLowerCase().replace(/的做法|[【】]/g, '').trim();
+    if (s1 === s2)
+        return 1;
+    if (s1.includes(s2) || s2.includes(s1))
+        return 0.85;
+    const distance = levenshteinDistance(s1, s2);
+    return Math.max(s1.length, s2.length) === 0 ? 1 : 1 - distance / Math.max(s1.length, s2.length);
+}
+function levenshteinDistance(str1, str2) {
+    const dp = Array.from({ length: str1.length + 1 }, () => Array(str2.length + 1).fill(0));
+    for (let i = 0; i <= str1.length; i++)
+        dp[i][0] = i;
+    for (let j = 0; j <= str2.length; j++)
+        dp[0][j] = j;
+    for (let i = 1; i <= str1.length; i++) {
+        for (let j = 1; j <= str2.length; j++) {
+            dp[i][j] = str1[i - 1] === str2[j - 1]
+                ? dp[i - 1][j - 1]
+                : Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + 1);
+        }
+    }
+    return dp[str1.length][str2.length];
 }

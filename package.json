@@ -1,6 +1,6 @@
 {
   "name": "howtocook-mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -11,7 +11,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-data.mjs",
+    "sync:v2-data": "node scripts/sync-v2-data.mjs",
     "start": "node build/index.js",
     "start:stdio": "node build/index.js --transport stdio",
     "start:http": "node build/index.js --transport http",

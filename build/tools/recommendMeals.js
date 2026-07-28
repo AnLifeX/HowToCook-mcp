@@ -21,7 +21,7 @@ export function registerRecommendMealsTool(server, recipes) {
         });
         // 将菜谱按分类分组
         const recipesByCategory = {};
-        const targetCategories = ['水产', '早餐', '荤菜', '主食'];
+        const targetCategories = ['aquatic', 'breakfast', 'meat_dish', 'staple', 'vegetable_dish', 'dessert', 'soup'];
         filteredRecipes.forEach((recipe) => {
             if (targetCategories.includes(recipe.category)) {
                 if (!recipesByCategory[recipe.category]) {
@@ -56,20 +56,20 @@ export function registerRecommendMealsTool(server, recipes) {
             };
             // 早餐 - 根据人数推荐1-2个早餐菜单
             const breakfastCount = Math.max(1, Math.ceil(peopleCount / 5));
-            for (let j = 0; j < breakfastCount && recipesByCategory['早餐'] && recipesByCategory['早餐'].length > 0; j++) {
-                const breakfastIndex = Math.floor(Math.random() * recipesByCategory['早餐'].length);
-                const selectedRecipe = recipesByCategory['早餐'][breakfastIndex];
+            for (let j = 0; j < breakfastCount && recipesByCategory['breakfast'] && recipesByCategory['breakfast'].length > 0; j++) {
+                const breakfastIndex = Math.floor(Math.random() * recipesByCategory['breakfast'].length);
+                const selectedRecipe = recipesByCategory['breakfast'][breakfastIndex];
                 selectedRecipes.push(selectedRecipe);
                 dayPlan.breakfast.push(simplifyRecipe(selectedRecipe));
                 // 避免重复，从候选列表中移除
-                recipesByCategory['早餐'] = recipesByCategory['早餐'].filter((_, idx) => idx !== breakfastIndex);
+                recipesByCategory['breakfast'] = recipesByCategory['breakfast'].filter((_, idx) => idx !== breakfastIndex);
             }
             // 午餐和晚餐的菜谱数量，根据人数确定
             const mealCount = Math.max(2, Math.ceil(peopleCount / 3));
             // 午餐
             for (let j = 0; j < mealCount; j++) {
                 // 随机选择菜系：主食、水产、蔬菜、荤菜等
-                const categories = ['主食', '水产', '荤菜', '素菜', '甜品'];
+                const categories = ['staple', 'aquatic', 'meat_dish', 'vegetable_dish', 'dessert'];
                 let selectedCategory = categories[Math.floor(Math.random() * categories.length)];
                 // 如果该分类没有菜谱或已用完，尝试其他分类
                 while (!recipesByCategory[selectedCategory] || recipesByCategory[selectedCategory].length === 0) {
@@ -90,7 +90,7 @@ export function registerRecommendMealsTool(server, recipes) {
             // 晚餐
             for (let j = 0; j < mealCount; j++) {
                 // 随机选择菜系，与午餐类似但可添加汤羹
-                const categories = ['主食', '水产', '荤菜', '素菜', '甜品', '汤羹'];
+                const categories = ['staple', 'aquatic', 'meat_dish', 'vegetable_dish', 'dessert', 'soup'];
                 let selectedCategory = categories[Math.floor(Math.random() * categories.length)];
                 // 如果该分类没有菜谱或已用完，尝试其他分类
                 while (!recipesByCategory[selectedCategory] || recipesByCategory[selectedCategory].length === 0) {
@@ -120,12 +120,12 @@ export function registerRecommendMealsTool(server, recipes) {
             };
             // 早餐 - 根据人数推荐菜品，至少2个菜品，随人数增加
             const breakfastCount = Math.max(2, Math.ceil(peopleCount / 3));
-            for (let j = 0; j < breakfastCount && recipesByCategory['早餐'] && recipesByCategory['早餐'].length > 0; j++) {
-                const breakfastIndex = Math.floor(Math.random() * recipesByCategory['早餐'].length);
-                const selectedRecipe = recipesByCategory['早餐'][breakfastIndex];
+            for (let j = 0; j < breakfastCount && recipesByCategory['breakfast'] && recipesByCategory['breakfast'].length > 0; j++) {
+                const breakfastIndex = Math.floor(Math.random() * recipesByCategory['breakfast'].length);
+                const selectedRecipe = recipesByCategory['breakfast'][breakfastIndex];
                 selectedRecipes.push(selectedRecipe);
                 dayPlan.breakfast.push(simplifyRecipe(selectedRecipe));
-                recipesByCategory['早餐'] = recipesByCategory['早餐'].filter((_, idx) => idx !== breakfastIndex);
+                recipesByCategory['breakfast'] = recipesByCategory['breakfast'].filter((_, idx) => idx !== breakfastIndex);
             }
             // 计算工作日的基础菜品数量
             const weekdayMealCount = Math.max(2, Math.ceil(peopleCount / 3));
@@ -134,7 +134,7 @@ export function registerRecommendMealsTool(server, recipes) {
             const mealCount = weekdayMealCount + weekendAddition;
             const getMeals = (count) => {
                 const result = [];
-                const categories = ['荤菜', '水产'];
+                const categories = ['meat_dish', 'aquatic'];
                 // 尽量平均分配不同分类的菜品
                 for (let j = 0; j < count; j++) {
                     const category = categories[j % categories.length];
@@ -145,13 +145,13 @@ export function registerRecommendMealsTool(server, recipes) {
                         result.push(simplifyRecipe(selectedRecipe));
                         recipesByCategory[category] = recipesByCategory[category].filter((_, idx) => idx !== index);
                     }
-                    else if (recipesByCategory['主食'] && recipesByCategory['主食'].length > 0) {
+                    else if (recipesByCategory['staple'] && recipesByCategory['staple'].length > 0) {
                         // 如果没有足够的荤菜或水产，使用主食
-                        const index = Math.floor(Math.random() * recipesByCategory['主食'].length);
-                        const selectedRecipe = recipesByCategory['主食'][index];
+                        const index = Math.floor(Math.random() * recipesByCategory['staple'].length);
+                        const selectedRecipe = recipesByCategory['staple'][index];
                         selectedRecipes.push(selectedRecipe);
                         result.push(simplifyRecipe(selectedRecipe));
-                        recipesByCategory['主食'] = recipesByCategory['主食'].filter((_, idx) => idx !== index);
+                        recipesByCategory['staple'] = recipesByCategory['staple'].filter((_, idx) => idx !== index);
                     }
                 }
                 return result;
@@ -168,8 +168,7 @@ export function registerRecommendMealsTool(server, recipes) {
         for (const [name, info] of ingredientMap.entries()) {
             mealPlan.groceryList.ingredients.push({
                 name,
-                totalQuantity: info.totalQuantity,
-                unit: info.unit,
+                amountExamples: info.amountExamples,
                 recipeCount: info.recipeCount,
                 recipes: info.recipes
             });

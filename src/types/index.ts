@@ -1,53 +1,80 @@
-// 定义菜谱的类型接口
+export interface RecipeRequirement {
+  text: string;
+  markdown: string;
+  group?: string | null;
+  kind: 'ingredient' | 'tool' | 'unknown' | string;
+}
+
 export interface Ingredient {
   name: string;
-  quantity: number | null;
-  unit: string | null;
-  text_quantity: string;
-  notes: string;
+  text: string;
+  optional: boolean;
+  source?: string | null;
+  table?: Record<string, string>;
 }
 
 export interface Step {
-  step: number;
+  kind: 'step' | 'heading' | string;
+  title?: string | null;
   description: string;
 }
 
+/** HowToCook assets schema v2. */
 export interface Recipe {
+  schemaVersion: 2;
   id: string;
+  legacyIds: string[];
   name: string;
-  description: string;
-  source_path: string;
-  image_path: string | null;
+  description?: string | null;
   category: string;
+  categoryName: string;
   difficulty: number;
-  tags: string[];
-  servings: number;
+  estimatedCaloriesKcal?: number | null;
+  requirements: RecipeRequirement[];
+  requirementsMarkdown?: string | null;
   ingredients: Ingredient[];
+  tools: string[];
+  calculationMarkdown?: string | null;
+  calculationNotes: string[];
   steps: Step[];
-  prep_time_minutes: number | null;
-  cook_time_minutes: number | null;
-  total_time_minutes: number | null;
-  additional_notes: string[];
+  operationMarkdown?: string | null;
+  tips?: string | null;
+  warnings: string[];
+  additionalMarkdown?: string | null;
+  images: string[];
+  externalImages: string[];
+  source?: unknown;
+  hash: string;
 }
 
-// 添加简化版的Recipe接口，只包含id、name和description
+export interface RecipeBundle {
+  schemaVersion: 2;
+  dataVersion: string;
+  generatedAt: string;
+  recipes: Recipe[];
+}
+
 export interface SimpleRecipe {
   id: string;
   name: string;
-  description: string;
-  ingredients: {
-    name: string;
-    text_quantity: string;
-  }[];
+  description?: string | null;
+  category: string;
+  categoryName: string;
+  difficulty: number;
+  estimatedCaloriesKcal?: number | null;
+  ingredients: Pick<Ingredient, 'name' | 'text' | 'optional'>[];
 }
 
-// 更简化的Recipe接口，只包含name和description，用于getAllRecipes
 export interface NameOnlyRecipe {
+  id: string;
   name: string;
-  description: string;
+  description?: string | null;
+  category: string;
+  categoryName: string;
+  difficulty: number;
+  estimatedCaloriesKcal?: number | null;
 }
 
-// 定义膳食计划相关接口
 export interface MealPlan {
   weekdays: Array<DayPlan>;
   weekend: Array<DayPlan>;
@@ -64,8 +91,7 @@ export interface DayPlan {
 export interface GroceryList {
   ingredients: Array<{
     name: string;
-    totalQuantity: number | null;
-    unit: string | null;
+    amountExamples: string[];
     recipeCount: number;
     recipes: string[];
   }>;
@@ -77,11 +103,10 @@ export interface GroceryList {
   };
 }
 
-// 定义推荐菜品的接口
 export interface DishRecommendation {
   peopleCount: number;
   meatDishCount: number;
   vegetableDishCount: number;
   dishes: SimpleRecipe[];
   message: string;
-} 
+}

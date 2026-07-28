@@ -9,15 +9,15 @@ export function registerWhatToEatTool(server, recipes) {
         const vegetableCount = Math.floor((peopleCount + 1) / 2);
         const meatCount = Math.ceil((peopleCount + 1) / 2);
         // 获取所有荤菜
-        let meatDishes = recipes.filter((recipe) => recipe.category === '荤菜' || recipe.category === '水产');
+        let meatDishes = recipes.filter((recipe) => recipe.category === 'meat_dish' || recipe.category === 'aquatic');
         // 获取其他可能的菜品（当做素菜）
-        let vegetableDishes = recipes.filter((recipe) => recipe.category !== '荤菜' && recipe.category !== '水产' &&
-            recipe.category !== '早餐' && recipe.category !== '主食');
+        let vegetableDishes = recipes.filter((recipe) => recipe.category !== 'meat_dish' && recipe.category !== 'aquatic' &&
+            recipe.category !== 'breakfast' && recipe.category !== 'staple');
         // 特别处理：如果人数超过8人，增加鱼类荤菜
         let recommendedDishes = [];
         let fishDish = null;
         if (peopleCount > 8) {
-            const fishDishes = recipes.filter((recipe) => recipe.category === '水产');
+            const fishDishes = recipes.filter((recipe) => recipe.category === 'aquatic');
             if (fishDishes.length > 0) {
                 fishDish = fishDishes[Math.floor(Math.random() * fishDishes.length)];
                 recommendedDishes.push(fishDish);

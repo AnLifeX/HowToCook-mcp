@@ -11,6 +11,8 @@
 
 数据来源：[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook) ⭐ 没有 star 的同学快去点个星星吧！
 
+> V0.3.0 已升级到 HowToCook V2 数据契约：内置数据版本 `2026.07.28.1`，共 367 份菜谱。菜谱使用稳定 UUID，并保留简介、估算热量、必备原料和工具、用量与计算、Markdown 表格、操作与附加内容。
+
 🎉 **同时，我们也提供了 DXT（Desktop Extensions）供大家体验，一键安装到 Claude Desktop**
 
 如下：请确保你已经安装了最新版的 Claude Desktop, 当前 MCP 的 DXT 文件已上传代码库，可以自行下载或者 Fork 本仓库自行构建
@@ -53,6 +55,7 @@
 3. **📖 查询指定菜谱** - 根据菜谱名称查询特定菜谱的完整详情，包括食材、步骤等
 4. **🧩 智能推荐膳食** - 根据你的忌口、过敏原和用餐人数，为你规划整整一周的美味佳肴
 5. **🎲 不知道吃什么** - 选择困难症福音！根据人数直接推荐今日菜单，再也不用纠结了
+6. **✨ 创建 V2 菜谱** - 支持结构化生成简介、热量、必备项、用量/表格和无重复序号的操作步骤
 
 ## 🚀 快速上手
 
@@ -66,7 +69,7 @@
 1. 克隆美食仓库
 
 ```bash
-git clone https://github.com/worryzyy/howtocook-mcp.git
+git clone https://github.com/Gaq152/HowToCook-mcp.git
 cd howtocook-mcp
 ```
 
@@ -81,6 +84,15 @@ npm install
 ```bash
 npm run build
 ```
+
+需要从同级 `HowToCook-assets` 静态仓库更新内置 V2 数据时，执行：
+
+```bash
+npm run sync:v2-data
+npm run build
+```
+
+`build` 会强制将同一份 `all_recipes.json` 复制到运行目录，避免源数据已更新但 MCP 仍读取旧包。
 
 ### 🎯 命令行参数
 

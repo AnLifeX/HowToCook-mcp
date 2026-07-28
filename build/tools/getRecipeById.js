@@ -1,13 +1,13 @@
 import { z } from "zod";
 export function registerGetRecipeByIdTool(server, recipes) {
-    server.tool("mcp_howtocook_getRecipeById", `根据菜谱名称或ID查询指定菜谱的完整详情，包括食材、步骤等。
+    server.tool("mcp_howtocook_getRecipeById", `根据菜谱名称、V2 UUID 或旧 ID 查询完整菜谱，包括简介、热量、必备项、用量与计算、操作和附加内容。
 
 注意：如果查询结果提示"未找到匹配的菜谱"，说明数据库中不存在该菜谱。
 此时你可以考虑使用 mcp_howtocook_createRecipe 工具来创建新的菜谱。`, {
         query: z.string().describe('菜谱名称或ID，支持模糊匹配菜谱名称')
     }, async ({ query }) => {
         // 首先尝试精确匹配ID
-        let foundRecipe = recipes.find(recipe => recipe.id === query);
+        let foundRecipe = recipes.find(recipe => recipe.id === query || recipe.legacyIds.includes(query));
         // 如果没有找到，尝试精确匹配名称
         if (!foundRecipe) {
             foundRecipe = recipes.find(recipe => recipe.name === query);
@@ -19,7 +19,7 @@ export function registerGetRecipeByIdTool(server, recipes) {
         // 如果仍然没有找到，返回所有可能的匹配项（最多5个）
         if (!foundRecipe) {
             const possibleMatches = recipes.filter(recipe => recipe.name.toLowerCase().includes(query.toLowerCase()) ||
-                recipe.description.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+                (recipe.description || '').toLowerCase().includes(query.toLowerCase())).slice(0, 5);
             if (possibleMatches.length === 0) {
                 return {
                     content: [
@@ -46,7 +46,8 @@ export function registerGetRecipeByIdTool(server, recipes) {
                                 id: recipe.id,
                                 name: recipe.name,
                                 description: recipe.description,
-                                category: recipe.category
+                                category: recipe.category,
+                                categoryName: recipe.categoryName
                             }))
                         }, null, 2),
                     },
