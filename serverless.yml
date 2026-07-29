@@ -1,0 +1,31 @@
+component: http
+name: http-mcp-IR7Dxcwhhx
+org: '1324174178'
+app: howtocook-mcp
+stage: prod
+inputs:
+  region: ap-guangzhou
+  src:
+    src: ./
+    exclude:
+      - .env
+      - .git/**
+      - .github/**
+      - src/**
+      - scripts/**
+      - '*.md'
+      - '*.dxt'
+      - tsconfig.json
+  faas:
+    framework: express
+    runtime: Nodejs18.15
+    name: mcp_cgexa
+    namespace: default
+    timeout: 60
+    bootstrap:
+      cmd: |-
+        #!/usr/bin/env bash
+        export PORT=9000
+        exec /var/lang/node18/bin/node build/index.js --transport http --port 9000
+  apigw:
+    isDisabled: true
