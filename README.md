@@ -1,220 +1,143 @@
-# 🍳 HowToCook-MCP Server 🥘 -- 炫一周好饭，拒绝拼好饭
+# HowToCook MCP Server
 
-[English](./README_EN.md) | 简体中文
+简体中文 | [English](./README_EN.md)
 
-<div align="center">
-</div>
+仓库：[AnLifeX/HowToCook-mcp](https://github.com/AnLifeX/HowToCook-mcp)。当前服务版本为 `0.3.0`，提供菜谱查询、随机菜单、每周膳食计划和 V2 菜谱规范化工具。
 
-> 让 AI 助手变身私人大厨，为你的一日三餐出谋划策！
+## 数据与功能
 
-基于[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook)打造的 MCP(Model Context Protocol)服务器，让 AI 助手能够为你推荐菜谱、规划膳食，解决"今天吃什么"的世纪难题！
+服务启动时读取本地 `build/data/all_recipes.json`，不会自动从远端同步，也不会调用大模型 API。当前内置数据版本为 `2026.07.28.1`，包含 367 份 V2 菜谱，使用稳定 UUID，并保留旧 ID。
 
-数据来源：[Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook) ⭐ 没有 star 的同学快去点个星星吧！
+菜谱来源为 [Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook)，V2 数据由 [AnLifeX/HowToCook-assets](https://github.com/AnLifeX/HowToCook-assets) 整理。本服务可独立部署；Flutter App 从 0.5.0 起使用 App 内置菜谱工具，不再依赖此 MCP 服务。
 
-> V0.3.0 已升级到 HowToCook V2 数据契约：内置数据版本 `2026.07.28.1`，共 367 份菜谱。菜谱使用稳定 UUID，并保留简介、估算热量、必备原料和工具、用量与计算、Markdown 表格、操作与附加内容。
+| 工具名称 | 参数 | 实际行为 |
+| --- | --- | --- |
+| `mcp_howtocook_getAllRecipes` | 无必填参数 | 返回全量索引：UUID、名称、简介、分类、难度、热量；不返回完整步骤，无分页。 |
+| `mcp_howtocook_getRecipesByCategory` | `category` | 按分类 ID 或中文名精确筛选，返回摘要与食材用量。 |
+| `mcp_howtocook_getRecipeById` | `query` | 依次匹配 UUID / 旧 ID、完整名称、名称子串；返回首个匹配的完整 V2 菜谱。名称未匹配时可返回简介匹配候选，最多 5 条。 |
+| `mcp_howtocook_recommendMeals` | `peopleCount`，可选 `allergies`、`avoidItems` | 按食材名称子串过滤后随机生成 7 天三餐和购物清单；人数必须为 1–10 的整数，候选不足时餐次可能不满。 |
+| `mcp_howtocook_whatToEat` | `peopleCount` | 按人数随机组合荤菜和其他类别菜品；人数必须为 1–10 的整数，不支持忌口或过敏原参数。 |
+| `mcp_howtocook_createRecipe` | `recipe` 或 `recipeText`；可选 `checkDuplicate`、`similarityThreshold` | 将客户端提供的菜谱规范化为 V2，并按名称相似度检查重复；只返回结果，不写入文件或加入查询库。 |
 
-🎉 **同时，我们也提供了 DXT（Desktop Extensions）供大家体验，一键安装到 Claude Desktop**
+分类：`aquatic`（水产）、`breakfast`（早餐）、`condiment`（调料）、`dessert`（甜品）、`drink`（饮料）、`meat_dish`（荤菜）、`semi-finished`（半成品）、`soup`（汤粥）、`staple`（主食）、`vegetable_dish`（素菜）。
 
-如下：请确保你已经安装了最新版的 Claude Desktop, 当前 MCP 的 DXT 文件已上传代码库，可以自行下载或者 Fork 本仓库自行构建
+每周推荐不是营养优化或过敏安全判定。购物清单保留原始用量示例及涉及菜谱，不会换算单位、按人数缩放食材用量或汇总为精确采购重量。工具返回 MCP 文本内容，其中的 `text` 为 JSON 字符串。
 
-![DXT](./public/dxt.png)
-![DXT](./public/dxt2.png)
-![DXT](./public/dxt3.png)
+## 从源码启动
 
-本地开发如何打包成 DXT？
-
-1.运行 `npm install -g @anthropic-ai/dxt`
-
-2.在包含本地 MCP 服务器的文件夹中，运行 `dxt init`。也就是您 MCP 的根目录，此命令将引导您创建`manifest.json`
-
-3.运行`dxt pack`创建 dxt 文件
-
-现在，任何支持 DXT 的应用都可以运行您的本地 MCP 服务器。例如，使用适用于 macOS 和 Windows 的 Claude 打开该文件即可显示安装对话框
-
-具体参阅:[anthropics/dxt](https://github.com/anthropics/dxt)
-
-## 📸 效果预览
-
-![功能预览1](https://mp-bc8d1f0a-3356-4a4e-8592-f73a3371baa2.cdn.bspapp.com/npm/1.png)
-![功能预览2](https://mp-bc8d1f0a-3356-4a4e-8592-f73a3371baa2.cdn.bspapp.com/npm/2.png)
-
-## 🔌 支持的 MCP 客户端
-
-本服务器适用于所有支持 MCP 协议的 AI 助手和客户端，包括但不限于：
-
-- 🤖 Claude 桌面应用
-- 📝 Cursor
-- 💼 其他支持 MCP 的客户端
-
-## ✨ 美味功能
-
-该 MCP 服务器提供以下美食工具:
-
-1. **📚 查询全部菜谱** - 获取所有可用菜谱数据，做菜百科全书 -- 慎用这个--上下文太大
-2. **🔍 根据分类查询菜谱** - 按照分类筛选菜谱，想吃水产？早餐？荤菜？主食？一键搞定！
-3. **📖 查询指定菜谱** - 根据菜谱名称查询特定菜谱的完整详情，包括食材、步骤等
-4. **🧩 智能推荐膳食** - 根据你的忌口、过敏原和用餐人数，为你规划整整一周的美味佳肴
-5. **🎲 不知道吃什么** - 选择困难症福音！根据人数直接推荐今日菜单，再也不用纠结了
-6. **✨ 创建 V2 菜谱** - 支持结构化生成简介、热量、必备项、用量/表格和无重复序号的操作步骤
-
-## 🚀 快速上手
-
-### 📋 先决条件
-
-- Node.js 16.0.0+ 🟢
-- npm 或 yarn 📦
-
-### 💻 安装步骤
-
-1. 克隆美食仓库
+要求：Node.js ≥ 18（与 `package.json` 和锁定依赖一致）、npm。
 
 ```bash
-git clone https://github.com/Gaq152/HowToCook-mcp.git
-cd howtocook-mcp
-```
-
-2. 安装依赖（就像准备食材一样简单！）
-
-```bash
-npm install
-```
-
-3. 编译代码（烹饪过程...）
-
-```bash
+git clone https://github.com/AnLifeX/HowToCook-mcp.git
+cd HowToCook-mcp
+npm ci
 npm run build
+npm start
 ```
 
-需要从同级 `HowToCook-assets` 静态仓库更新内置 V2 数据时，执行：
+`npm run build` 编译 TypeScript，并将 `src/data/all_recipes.json` 复制到运行目录。默认监听 `0.0.0.0:9000`，使用 HTTP；服务没有内置身份认证，向外开放时需在部署入口配置访问控制。
+
+### 传输与端点
+
+| 配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `--transport <http\|sse\|stdio>` | `http` | 也可通过环境变量 `transport` 或 `TRANSPORT` 设置。 |
+| `--port <number>` | `9000` | 也可通过环境变量 `PORT` 或 `port` 设置，适用于 HTTP / SSE。 |
+
+环境变量优先于命令行参数；同名大小写变量的优先顺序如上。服务不会自动加载 `.env` 文件，需由启动环境设置变量。
+
+```bash
+node build/index.js --transport http --port 8080
+```
+
+HTTP 和 SSE 模式均开放以下路由：
+
+- `http://localhost:9000/mcp`：Streamable HTTP MCP 端点。
+- `http://localhost:9000/sse`：SSE 连接端点；消息通过 `/messages?sessionId=...` 提交。
+- `http://localhost:9000/health`：健康状态、传输方式、Schema 与数据版本。
+- `http://localhost:9000/info`：服务版本、数据版本、端点及菜谱数量。
+
+可用脚本：`npm run start:http`、`npm run start:sse`、`npm run start:stdio`。环境变量仍会覆盖这些脚本中的传输参数。
+
+### 连接 MCP 客户端
+
+推荐在支持 Streamable HTTP 的客户端中配置服务 URL `http://localhost:9000/mcp`。远端部署时替换为自己的服务地址；具体配置格式以客户端为准。
+
+本地 stdio 启动示例（将路径替换为实际绝对路径）：
+
+```json
+{
+  "mcpServers": {
+    "howtocook-mcp": {
+      "command": "node",
+      "args": ["D:/path/HowToCook-mcp/build/index.js", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+当前源码还会将启动及数据加载日志写到 stdout，可能干扰严格解析 stdio 的客户端；建议优先使用 HTTP，stdio 兼容性需单独验证。客户端进程的 `transport` / `TRANSPORT` 环境变量也可能覆盖上述参数。
+
+## 更新内置 V2 数据
+
+将 `HowToCook-assets` 放在本仓库同级目录，再执行：
 
 ```bash
 npm run sync:v2-data
 npm run build
 ```
 
-`build` 会强制将同一份 `all_recipes.json` 复制到运行目录，避免源数据已更新但 MCP 仍读取旧包。
-
-### 🎯 命令行参数
-
-服务器支持以下命令行参数：
-
-- `--transport <stdio|http|sse>` - 选择传输方式（默认为 stdio）
-- `--port <number>` - 使用 http 或 sse 传输时的监听端口（默认为 3000）
-
-示例：使用 http 传输并监听 8080 端口
+也可显式指定静态仓库目录：
 
 ```bash
-node build/index.js --transport http --port 8080
+npm run sync:v2-data -- D:/path/HowToCook-assets
+npm run build
 ```
 
-## 🍽️ 开始使用
+同步脚本读取该本地仓库的 `channels/v2-stable.json` 和对应 manifest，将菜谱打包到 `src/data/all_recipes.json`。构建后重启服务才能加载新数据；脚本不会自动拉取 Git 远端。
 
-### 🔥 启动服务器
+## 调用示例
 
-```bash
-npm start
+以下为工具参数，不是完整 MCP 请求报文：
+
+```json
+{"query": "宫保鸡丁"}
 ```
 
-### 🔧 配置 MCP 客户端
+```json
+{"category": "水产"}
+```
 
-#### 推荐使用 Cursor 快速体验(两种方式)
+```json
+{"peopleCount": 3, "allergies": ["虾"], "avoidItems": ["香菜"]}
+```
 
-1. 使用 npm 包：请先运行 `npm i -g howtocook-mcp` ,否则会出现 `Failed to create client`
-
-然后在 Cursor 设置中添加 MCP 服务器配置：
+`createRecipe` 优先接收结构化 `recipe`，至少需要 `name`、非空 `ingredients` 和非空 `steps`：
 
 ```json
 {
-	"mcpServers": {
-		"howtocook-mcp": {
-			"command": "npx",
-			"args": ["-y", "howtocook-mcp"]
-		}
-	}
+  "recipe": {
+    "name": "示例炒青菜",
+    "description": "简单的家常青菜",
+    "category": "vegetable_dish",
+    "categoryName": "素菜",
+    "ingredients": [
+      {"name": "青菜", "text": "青菜 300 克"},
+      {"name": "油", "text": "油 10 毫升"},
+      {"name": "盐", "text": "盐 2 克"}
+    ],
+    "steps": [
+      {"description": "青菜洗净沥干。"},
+      {"description": "热锅加油，放入青菜炒熟，加盐调味。"}
+    ]
+  }
 }
 ```
 
-2. 如果是克隆仓库本地运行，请使用如下配置
+可选字段包括简介、难度、热量、必备项、工具、计算说明、贴士和警告。默认检查名称重复，提醒阈值为 `0.75`；通过该阈值筛选的候选若相似度 ≥ `0.9` 会拒绝创建。`checkDuplicate: false` 可关闭检查。菜谱内容由调用方提供，服务不会自行生成或持久化菜谱。
 
-```json
-{
-	"mcpServers": {
-		"howtocook-mcp": {
-			"command": "node",
-			"args": ["youpath\\howtocook-mcp\\build\\index.js"]
-		}
-	}
-}
-```
+## DXT 与许可
 
-#### 其他 MCP 客户端
+仓库保留 `manifest.json` 和预构建的 `HowToCook-mcp.dxt`，包内清单和文档已同步更新。本次未重新构建运行代码或验证桌面客户端安装；后续修改源码或清单时需同步更新该文件。本文以源码启动方式为准。
 
-对于其他支持 MCP 协议的客户端，请参考各自的文档进行配置，通常需要指定：
-
-- 服务器名称: `howtocook-mcp`
-- 命令: `npx -y howtocook-mcp`
-
-3. 重启客户端，让美食魔法生效 ✨
-
-## 🧙‍♂️ 菜单魔法使用指南
-
-以下是在各种 MCP 客户端中使用的示例提示语：
-
-### 1. 📚 查询全部菜谱
-
-无需参数，直接召唤美食全书！
-
-```
-请使用howtocook的MCP服务查询所有菜谱
-```
-
-### 2. 🔍 根据分类查询菜谱
-
-```
-请使用howtocook的MCP服务查询水产类的菜谱
-```
-
-参数:
-
-- `category`: 菜谱分类（水产、早餐、荤菜、主食等）
-
-### 3. 🧩 智能推荐一周菜谱
-
-```
-请使用howtocook的MCP服务为3人推荐一周菜谱，我们家不吃香菜，对虾过敏
-```
-
-参数:
-
-- `allergies`: 过敏原列表，如 ["大蒜", "虾"]
-- `avoidItems`: 忌口食材，如 ["葱", "姜"]
-- `peopleCount`: 用餐人数 (1-10)
-
-### 4. 🎲 今天吃什么？
-
-```
-请使用howtocook的MCP服务为4人晚餐推荐菜单
-```
-
-参数:
-
-- `peopleCount`: 用餐人数 (1-10)
-
-## 📝 小贴士
-
-- 该包已发布至 npm，可直接通过`npm install -g howtocook-mcp`全局安装
-- 本服务兼容所有支持 MCP 协议的 AI 助手和应用
-- 首次使用时，AI 可能需要一点时间来熟悉如何使用这些工具（就像烧热锅一样）
-
-## 🤝 贡献
-
-欢迎 Fork 和 Pull Request，让我们一起完善这个美食助手！
-
-## 📄 许可
-
-MIT License - 随意使用，就像分享美食配方一样慷慨！
-
----
-
-> 🍴 美食即将开始，胃口准备好了吗？
-
+`package.json` 和扩展清单声明的代码许可为 ISC；菜谱数据来源见上方链接。

@@ -1,228 +1,143 @@
-# 🍳 HowToCook-MCP Server 🥘 -- Plan Your Weekly Meals, No More Daily Struggles
+# HowToCook MCP Server
 
-English | [简体中文](./README.md)
+[简体中文](./README.md) | English
 
-<div align="center">
+Repository: [AnLifeX/HowToCook-mcp](https://github.com/AnLifeX/HowToCook-mcp). Server version `0.3.0` provides recipe lookup, random menus, weekly meal plans, and V2 recipe normalization.
 
-CDN acceleration and security protection for this project are sponsored by Tencent EdgeOne.
+## Data and tools
 
-[Best Asian CDN, Edge, and Secure Solutions - Tencent EdgeOne](https://edgeone.ai/zh?from=github)
+At startup, the server reads local `build/data/all_recipes.json`. It does not automatically sync remote data or call an AI model API. The current bundle contains 367 V2 recipes from data version `2026.07.28.1`, with stable UUIDs and legacy IDs.
 
-<img src="./public/edgeone.png"/>
+Recipes originate from [Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook); V2 data is maintained in [AnLifeX/HowToCook-assets](https://github.com/AnLifeX/HowToCook-assets). This server can run independently. Since version 0.5.0, the Flutter app uses its own built-in recipe tools and no longer depends on this MCP server.
 
-</div>
+| Tool | Parameters | Actual behavior |
+| --- | --- | --- |
+| `mcp_howtocook_getAllRecipes` | No required parameters | Returns the full index: UUID, name, description, category, difficulty, and calories. No full steps or pagination. |
+| `mcp_howtocook_getRecipesByCategory` | `category` | Matches a category ID or Chinese label exactly; returns summaries and ingredient quantities. |
+| `mcp_howtocook_getRecipeById` | `query` | Matches UUID / legacy ID, exact name, then a name substring; returns the first full matching V2 recipe. If no name matches, it may return up to five description matches. |
+| `mcp_howtocook_recommendMeals` | `peopleCount`; optional `allergies`, `avoidItems` | Filters ingredient names by substring, then randomly builds seven days of meals and a grocery list. Requires an integer from 1 to 10; meals may be incomplete if candidates run out. |
+| `mcp_howtocook_whatToEat` | `peopleCount` | Randomly combines meat dishes and dishes from other categories for an integer from 1 to 10. Does not accept allergy or avoidance parameters. |
+| `mcp_howtocook_createRecipe` | `recipe` or `recipeText`; optional `checkDuplicate`, `similarityThreshold` | Normalizes caller-provided content to V2 and checks name similarity. Returns the result without saving files or adding it to the searchable collection. |
 
-> Turn your AI assistant into a personal chef that helps plan your daily meals!
+Categories: `aquatic` (水产), `breakfast` (早餐), `condiment` (调料), `dessert` (甜品), `drink` (饮料), `meat_dish` (荤菜), `semi-finished` (半成品), `soup` (汤粥), `staple` (主食), and `vegetable_dish` (素菜).
 
-An MCP (Model Context Protocol) server based on [Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook), allowing AI assistants to recommend recipes, plan meals, and solve the age-old question of "what should I eat today?"
+Weekly recommendations do not optimize nutrition or determine allergy safety. Grocery lists retain original quantity examples and recipe references; they do not convert units, scale ingredient quantities by party size, or calculate exact total purchase weights. Tool results use MCP text content whose `text` contains JSON.
 
-Data Source: [Anduin2017/HowToCook](https://github.com/Anduin2017/HowToCook) ⭐ Don't forget to star the repo if you haven't already!
+## Run from source
 
-🎉 **Want to use MCP right away? Try it now** [https://howtocookmcp.weilei.site/](https://howtocookmcp.weilei.site/)
-
-🎉 **At the same time, we also provide DXT (Desktop Extensions) for everyone to experience, one-click installation to Claude Desktop**
-
-As follows: Please make sure you have installed the latest version of Claude Desktop. The current MCP DXT file has been uploaded to the code library. You can download it yourself or fork this repository to build it yourself
-
-![DXT](./public/dxt.png)
-
-![DXT](./public/dxt2.png)
-
-![DXT](./public/dxt3.png)
-
-How to package local development into DXT?
-
-1. Run `npm install -g @anthropic-ai/dxt`
-
-2. In the folder containing the local MCP server, run `dxt init`. That is, the root directory of your MCP. This command will guide you to create `manifest.json`
-
-3. Run `dxt pack` to create a dxt file
-
-Now, any application that supports DXT can run your local MCP server. For example, opening the file with Claude for macOS and Windows will display the installation dialog
-
-For more information, see: [anthropics/dxt](https://github.com/anthropics/dxt)
-
-## 📸 Preview
-
-![Feature Preview 1](https://mp-bc8d1f0a-3356-4a4e-8592-f73a3371baa2.cdn.bspapp.com/npm/1.png)
-![Feature Preview 2](https://mp-bc8d1f0a-3356-4a4e-8592-f73a3371baa2.cdn.bspapp.com/npm/2.png)
-
-## 🔌 Supported MCP Clients
-
-This server works with all AI assistants and clients that support the MCP protocol, including but not limited to:
-
-- 🤖 Claude Desktop App
-- 📝 Cursor
-- 💼 Other MCP-compatible clients
-
-## ✨ Delicious Features
-
-This MCP server provides the following culinary tools:
-
-1. **📚 Query All Recipes** - Access all available recipe data, your complete cooking encyclopedia -- Use with caution due to large context size
-2. **🔍 Query Recipes by Category** - Filter recipes by category: seafood, breakfast, meat dishes, staple foods, and more!
-3. **🧩 Smart Meal Planning** - Get a full week's meal plan based on dietary restrictions, allergies, and number of diners
-4. **🎲 Don't Know What to Eat?** - Perfect for the indecisive! Get instant menu recommendations based on party size
-5. **🔎 Query Specific Recipe** - Search for specific recipes by name or ID, supports both exact and fuzzy matching to save tokens
-
-## 🚀 Quick Start
-
-### 📋 Prerequisites
-
-- Node.js 16.0.0+ 🟢
-- npm or yarn 📦
-
-### 💻 Installation
-
-1. Clone the repository
+Requirements: Node.js ≥ 18 (matching `package.json` and locked dependencies), npm.
 
 ```bash
-git clone https://github.com/worryzyy/howtocook-mcp.git
-cd howtocook-mcp
-```
-
-2. Install dependencies (as simple as preparing ingredients!)
-
-```bash
-npm install
-```
-
-3. Build the code (the cooking process...)
-
-```bash
+git clone https://github.com/AnLifeX/HowToCook-mcp.git
+cd HowToCook-mcp
+npm ci
 npm run build
+npm start
 ```
 
-### 🎯 CLI Arguments
+`npm run build` compiles TypeScript and copies `src/data/all_recipes.json` into the build directory. The default is HTTP on `0.0.0.0:9000`. There is no built-in authentication; configure access control at the deployment entry point when exposing the service.
 
-The server accepts the following command-line arguments:
+### Transports and endpoints
 
-- `--transport <stdio|http|sse>` - Transport to use (stdio by default)
-- `--port <number>` - Port to listen on when using http or sse transport (default 3000)
+| Setting | Default | Environment variables |
+| --- | --- | --- |
+| `--transport <http\|sse\|stdio>` | `http` | `transport`, then `TRANSPORT` |
+| `--port <number>` | `9000` | `PORT`, then `port`; used for HTTP / SSE |
 
-Example with http transport and port 8080:
+Environment variables override command-line arguments, in the order listed above. The server does not load `.env` automatically; set variables in the launch environment.
 
 ```bash
 node build/index.js --transport http --port 8080
 ```
 
-## ��️ Getting Started
+Both HTTP and SSE modes expose these routes:
 
-### 🔥 Start the Server
+- `http://localhost:9000/mcp`: Streamable HTTP MCP endpoint.
+- `http://localhost:9000/sse`: SSE connection endpoint; messages are posted to `/messages?sessionId=...`.
+- `http://localhost:9000/health`: health status, transport, schema version, and data version.
+- `http://localhost:9000/info`: server version, data version, endpoints, and recipe count.
+
+Available scripts: `npm run start:http`, `npm run start:sse`, and `npm run start:stdio`. Environment variables still override their transport arguments.
+
+### Connect an MCP client
+
+For clients supporting Streamable HTTP, use `http://localhost:9000/mcp`. Replace it with your own service URL for a remote deployment. Configuration syntax depends on the client.
+
+Local stdio example (replace the path with your actual absolute path):
+
+```json
+{
+  "mcpServers": {
+    "howtocook-mcp": {
+      "command": "node",
+      "args": ["D:/path/HowToCook-mcp/build/index.js", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+The current source also writes startup and data-loading logs to stdout, which may interfere with strict stdio clients. Prefer HTTP; verify stdio compatibility separately. The client process's `transport` / `TRANSPORT` environment variables can also override these arguments.
+
+## Update bundled V2 data
+
+Place `HowToCook-assets` alongside this repository, then run:
 
 ```bash
-npm start
+npm run sync:v2-data
+npm run build
 ```
 
-### 🔧 Configure MCP Clients
+Alternatively, pass the local assets repository path:
 
-#### It is recommended to use Cursor for quick experience (two methods)Cursor Configuration
+```bash
+npm run sync:v2-data -- D:/path/HowToCook-assets
+npm run build
+```
 
-1. Using npm package: Please run `npm i -g howtocook-mcp` first, otherwise `Failed to create client` will appear
+The script reads the local repository's `channels/v2-stable.json` and corresponding manifest, then bundles recipes into `src/data/all_recipes.json`. Restart the server after building to load the new data. The script does not pull from Git remotes.
 
-Then add the MCP server configuration in Cursor settings:
+## Example tool arguments
+
+These are tool arguments, not complete MCP request messages:
+
+```json
+{"query": "宫保鸡丁"}
+```
+
+```json
+{"category": "aquatic"}
+```
+
+```json
+{"peopleCount": 3, "allergies": ["虾"], "avoidItems": ["香菜"]}
+```
+
+`createRecipe` prefers a structured `recipe` with a `name`, a non-empty `ingredients` array, and a non-empty `steps` array:
 
 ```json
 {
-	"mcpServers": {
-		"howtocook-mcp": {
-			"command": "npx",
-			"args": ["-y", "howtocook-mcp"]
-		}
-	}
+  "recipe": {
+    "name": "Example stir-fried greens",
+    "description": "Simple home-style greens",
+    "category": "vegetable_dish",
+    "categoryName": "素菜",
+    "ingredients": [
+      {"name": "Greens", "text": "Greens 300 g"},
+      {"name": "Oil", "text": "Oil 10 ml"},
+      {"name": "Salt", "text": "Salt 2 g"}
+    ],
+    "steps": [
+      {"description": "Wash and drain the greens."},
+      {"description": "Heat the oil, stir-fry the greens until cooked, and season with salt."}
+    ]
+  }
 }
 ```
 
-2. If running from a local cloned repository, use this configuration:
+Optional fields include description, difficulty, calories, requirements, tools, calculation notes, tips, and warnings. Name-based duplicate checking is enabled by default, with a warning threshold of `0.75`. Among candidates passing that threshold, similarity ≥ `0.9` rejects creation. Set `checkDuplicate: false` to disable the check. The caller supplies the recipe content; the server does not generate or persist it.
 
-```json
-{
-	"mcpServers": {
-		"howtocook-mcp": {
-			"command": "node",
-			"args": ["yourpath\\howtocook-mcp\\build\\index.js"]
-		}
-	}
-}
-```
+## DXT and license
 
-#### Other MCP Clients
+The repository retains `manifest.json` and a prebuilt `HowToCook-mcp.dxt`, with updated manifest and documentation. This update does not rebuild runtime code or verify desktop client installation. Future source or manifest changes require updating the archive as well. This README documents running from source.
 
-For other clients supporting the MCP protocol, refer to their respective documentation. Generally, you'll need to specify:
-
-- Server name: `howtocook-mcp`
-- Command: `npx -y howtocook-mcp`
-
-3. Restart the client to activate the culinary magic ✨
-
-## 🧙‍♂️ Culinary Magic Usage Guide
-
-Here are example prompts for using these tools in MCP clients:
-
-### 1. 📚 Query All Recipes
-
-No parameters needed, just summon the culinary encyclopedia!
-
-```
-Please use the howtocook MCP service to query all recipes
-```
-
-### 2. 🔍 Query Recipes by Category
-
-```
-Please use the howtocook MCP service to query seafood recipes
-```
-
-Parameters:
-
-- `category`: Recipe category (seafood, breakfast, meat dishes, staple foods, etc.)
-
-### 3. 🧩 Smart Meal Planning
-
-```
-Please use the howtocook MCP service to recommend a weekly meal plan for 3 people. We don't eat cilantro and are allergic to shrimp.
-```
-
-Parameters:
-
-- `allergies`: List of allergens, e.g., ["garlic", "shrimp"]
-- `avoidItems`: Dietary restrictions, e.g., ["green onion", "ginger"]
-- `peopleCount`: Number of diners (1-10)
-
-### 4. 🎲 What to Eat Today?
-
-```
-Please use the howtocook MCP service to recommend a dinner menu for 4 people
-```
-
-Parameters:
-
-- `peopleCount`: Number of diners (1-10)
-
-### 5. 🔎 Query Specific Recipe
-
-```
-Please use the howtocook MCP service to query the recipe for "Kung Pao Chicken"
-```
-
-Parameters:
-
-- `recipeId`: Recipe name or ID to search for
-
-## 📝 Tips
-
-- This package is published on npm and can be installed globally via `npm install -g howtocook-mcp`
-- Compatible with all AI assistants and applications that support the MCP protocol
-- On first use, AI may need some time to familiarize itself with these tools (like preheating an oven)
-
-## 🤝 Contributing
-
-Forks and Pull Requests are welcome! Let's improve this culinary assistant together!
-
-## 📄 License
-
-MIT License - Feel free to use, just like sharing your favorite recipes!
-
----
-
-> 🍴 The feast is about to begin, is your appetite ready?
+`package.json` and the extension manifest declare ISC for the code. Recipe data sources are linked above.
